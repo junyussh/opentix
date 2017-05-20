@@ -1,0 +1,10 @@
+{
+  "db": {
+    "username": "admin",
+    "password": "admin1234",
+    "database": "opentix",
+    "host": "localhost",
+    "port": "27017",
+    "authMechanism": "DEFAULT"
+  }
+}

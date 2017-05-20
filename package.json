@@ -1,0 +1,10 @@
+{
+  "name": "opentix",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Chun Yu",
+  "license": "GNU",
+  "dependencies": {
+    "mongodb": "^2.2.26"
+  }
+}
