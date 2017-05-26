@@ -7,5 +7,7 @@ var handle = {}
 handle["/"] = requestHandlers.index;
 handle["/api"] = requestHandlers.api;
 handle["/upload"] = requestHandlers.upload;
+handle["/users"] = requestHandlers.users;
+handle["PrintJSON"] = requestHandlers.PrintJSON;
 
 server.start(router.route, handle);
