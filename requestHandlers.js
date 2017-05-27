@@ -3,6 +3,8 @@ var assert = require("assert");
 var url = require("url");
 var mongo = require("./lib/db.model.js");
 var crypto = require("crypto");
+var Ajv = require('ajv');
+var ajv = new Ajv();
 
 function PrintJSON(response, res, code) {
   if (typeof code != "number") {
@@ -46,6 +48,7 @@ function users(request, response, postData) {
 
   switch (request.method) {
     case "GET":
+    // fetching data
       mongo.find({}, function(err, data) {
         if (err) {
           res = {
@@ -63,13 +66,27 @@ function users(request, response, postData) {
       });
       break;
     case "POST":
-      if (typeof postData.password === "string") {
+    // add a user
+    var schema = {
+      "type": "object",
+      "properties": {
+        "username": {"type": "string"},
+        "email": {"format": "email"},
+        "password": {"type": "string"},
+        "name": {"type": "string"},
+        "gender": {"enum": ["male", "female"]},
+        "birth": {"format": "date-time"},
+        "telephone": {"type": "number"}
+      },
+      "required": ["username", "email", "password", "name", "gender", "birth"],
+      "additionalProperties": true
+    };
+    var valid = ajv.validate(schema, postData);
+      if (valid) {
         var hash = crypto.createHash('sha256').update(postData.password).digest('base64');
-        var error = mongo.validateSync();
-        console.log(error.errors['birth'].message);
-        assert.equal(error.errors['birth'].message,
-          'field `name` is required.')
+
         var user = new mongo({
+          username: postData.username,
           email: postData.email,
           password: hash,
           name: postData.name,
@@ -102,9 +119,10 @@ function users(request, response, postData) {
           PrintJSON(response, res, code);
         });
       } else {
+        console.error(ajv.errors);
         res = {
           "error": true,
-          "message": "No data post"
+          "message": ajv.errors[0].message
         }
         PrintJSON(response, res, 400);
       }

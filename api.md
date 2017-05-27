@@ -14,6 +14,7 @@
   "email": "junyussh@gmail.com",
   "password": "user12345",
   "name": "Chun Yu Chen",
+  "gender": "male",
   "birth": "2000-08-15T16:00:00.000Z"
 }
 ```
