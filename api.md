@@ -1,7 +1,7 @@
 |HTTP Method|URL|POST Body|Reselt|
 |---|---|---|---|
 |POST|/users|JSON String|新增一位使用者|
-|GET|/users/:id|empty|取得用戶資料|
+|GET|/users/?id|empty|取得用戶資料|
 |PUT|/users/:id|none|更新用戶資料|
 |POST|/login|JSON String|加入 Token|
 |GET|/logout|empty|刪除 Token|

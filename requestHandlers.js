@@ -41,6 +41,53 @@ function api(request, response, postData) {
   response.end();
 }
 
+function FindUser(id) {
+  var callback = {};
+  if (typeof id === "string") {
+    mongo.find({ username: id }, function(err, data) {
+      if (err) {
+        callback = {
+          "error": true,
+          "message": "Error fetching data"
+        };
+        code = 500;
+      } else {
+        data = data[0];
+        console.log(typeof data);
+        if (typeof data != "undefined") {
+          var userdata = {
+            "email": data.email,
+            "name": data.name,
+            "gender": data.gender,
+            "birth": data.birth,
+            "type": data.type,
+            "created_at": data.created_at,
+            "last_at": data.last_at
+          }
+          callback = {
+            "error": false,
+            "message": userdata
+          };
+          return callback;
+        } else {
+          callback = {
+            "error": true,
+            "message": "User not found"
+          };
+          code = 404;
+        }
+      }
+      return callback;
+    });
+  } else {
+    callback = {
+      "error": true,
+      "message": "Error: no id input"
+    };
+    return callback;
+  }
+}
+
 function users(request, response, postData) {
   var res = {};
   var code = 200;
@@ -48,43 +95,53 @@ function users(request, response, postData) {
 
   switch (request.method) {
     case "GET":
-    // fetching data
-      mongo.find({}, function(err, data) {
-        if (err) {
-          res = {
-            "error": true,
-            "message": "Error fetching data"
-          };
-          code = 500;
-        } else {
-          res = {
-            "error": false,
-            "message": data
-          };
-        }
-        PrintJSON(response, res, code);
+      FindUser(request.query.id, function(callback) {
+        console.log("PrintJSON");
+        PrintJSON(response, callback, code);
       });
+      var json = FindUser(request.query.id);
+      console.log("Return: " + json);
+      console.log("OK");
+      //console.log(FindUser(request.query.id));
+      //PrintJSON(response, res, code);
       break;
     case "POST":
-    // add a user
-    var schema = {
-      "type": "object",
-      "properties": {
-        "username": {"type": "string"},
-        "email": {"format": "email"},
-        "password": {"type": "string"},
-        "name": {"type": "string"},
-        "gender": {"enum": ["male", "female"]},
-        "birth": {"format": "date-time"},
-        "telephone": {"type": "number"}
-      },
-      "required": ["username", "email", "password", "name", "gender", "birth"],
-      "additionalProperties": true
-    };
-    var valid = ajv.validate(schema, postData);
+      // add a user
+      // Validate Schema
+      var schema = {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "format": "email"
+          },
+          "password": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "gender": {
+            "enum": ["male", "female"]
+          },
+          "birth": {
+            "format": "date-time"
+          },
+          "telephone": {
+            "type": "number"
+          }
+        },
+        "required": ["username", "email", "password", "name", "gender", "birth"],
+        "additionalProperties": true
+      };
+      var valid = ajv.validate(schema, postData);
+      // True/False
       if (valid) {
+        // Encrypted password
         var hash = crypto.createHash('sha256').update(postData.password).digest('base64');
-
+        // Create a new user
         var user = new mongo({
           username: postData.username,
           email: postData.email,
@@ -94,9 +151,9 @@ function users(request, response, postData) {
           birth: postData.birth,
           telephone: postData.telephone,
           type: "user",
-          register_date: new Date().toISOString(),
-          register_ip: ip,
-          last_date: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          created_ip: ip,
+          last_at: new Date().toISOString(),
           last_ip: ip
         });
         user.save(function(err) {
