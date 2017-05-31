@@ -21,6 +21,7 @@ db.once('open', function() {
     birth: {type: Date, required: true},
     telephone: Number,
     type: String,
+    isVerified: Boolean,
     created_at: Date,
     created_ip: String,
     last_at: Date,

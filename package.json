@@ -5,6 +5,7 @@
   "author": "Chun Yu",
   "license": "GNU",
   "dependencies": {
+    "jsonwebtoken": "^7.4.1",
     "mongodb": "^2.2.26"
   }
 }

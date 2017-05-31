@@ -1,10 +1,14 @@
 var querystring = require("querystring");
 var assert = require("assert");
 var url = require("url");
-var mongo = require("./lib/db.model.js");
+var User = require("./model/db.model.js").User;
 var crypto = require("crypto");
+var Jwt = require("jsonwebtoken");
+var config = require("./config.json");
+var privateKey = config.privateKey;
 var Ajv = require('ajv');
 var ajv = new Ajv();
+var exist = 0;
 
 function PrintJSON(response, res, code) {
   if (typeof code != "number") {
@@ -17,18 +21,11 @@ function PrintJSON(response, res, code) {
   response.end();
 }
 
-function Convert(response) {
-  try {
-    JSON.parse(postData);
-    return 1;
-  } catch (e) {
-    var res = {
-      "error": true,
-      "message": "Data is not json"
-    };
-    PrintJSON(response, res, 406);
-    return 0;
-  }
+function Encrypt(password) {
+  // Encrypted password
+  var hash = crypto.createHash('sha256').update(password).digest('base64');
+  return hash;
+
 }
 
 function api(request, response, postData) {
@@ -41,50 +38,132 @@ function api(request, response, postData) {
   response.end();
 }
 
-function FindUser(id) {
-  var callback = {};
-  if (typeof id === "string") {
-    mongo.find({ username: id }, function(err, data) {
-      if (err) {
+function IfExist(query) {
+  User.get(query, function(err, result) {
+    if (err) {
+      callback = {
+        "error": true,
+        "message": result
+      };
+      return PrintJSON(res, callback, 404);
+    } else {
+      if (result == null) {
+        return exist=0;
+      } else {
+        return exist=1;
+      }
+    }
+  });
+}
+
+function Find(req, res) {
+  User.get({
+    username: req.query.id
+  }, function(err, result) {
+    var callback = {};
+    if (err) {
+      callback = {
+        "error": true,
+        "message": result
+      };
+      return PrintJSON(res, callback, 404);
+    } else {
+      if (result) {
+        var userdata = {
+          "email": result.email,
+          "name": result.name,
+          "gender": result.gender,
+          "birth": result.birth,
+          "type": result.type,
+          "created_at": result.created_at,
+          "last_at": result.last_at
+        };
+        callback = {
+          "error": false,
+          "message": userdata
+        };
+        return PrintJSON(res, callback, 200);
+      } else {
         callback = {
           "error": true,
-          "message": "Error fetching data"
-        };
-        code = 500;
-      } else {
-        data = data[0];
-        console.log(typeof data);
-        if (typeof data != "undefined") {
-          var userdata = {
-            "email": data.email,
-            "name": data.name,
-            "gender": data.gender,
-            "birth": data.birth,
-            "type": data.type,
-            "created_at": data.created_at,
-            "last_at": data.last_at
-          }
-          callback = {
-            "error": false,
-            "message": userdata
-          };
-          return callback;
-        } else {
-          callback = {
-            "error": true,
-            "message": "User not found"
-          };
-          code = 404;
+          "message": "User not found"
         }
       }
-      return callback;
+      return PrintJSON(res, callback, 404);
+    }
+  });
+}
+
+function login(req, res, postData) {
+  var schema = {
+    "type": "object",
+    "properties": {
+      "username": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string"
+      }
+    },
+    "required": ["username", "password"],
+    "additionalProperties": false
+  };
+  var callback = {};
+  var valid = ajv.validate(schema, postData);
+  if (valid) {
+    // Input format correct
+    User.get({ username: postData.username }, function(err, user) {
+      if (err) {
+        // Server Error
+        callback = {
+          "error": true,
+          "message": user
+        };
+        return PrintJSON(res, callback, 500);
+      } else if (user == null) {
+        // User not found
+        callback = {
+          "error": true,
+          "message": "User isn't existed!"
+        };
+        return PrintJSON(res, callback, 404);
+      } else {
+        // Found
+        if (user.password === Encrypt(postData.password)) { // password pass
+          if (!user.isVerified) {
+            // Email not verified
+            callback = {
+              "error": true,
+              "verified": false,
+              "message": "Your email address is not verified."
+            };
+            return PrintJSON(res, callback, 401);
+          } else {
+            // Everything ok
+            var tokenData = {
+              username: user.username,
+              id: user._id
+            };
+            var result = {
+              username: user.username,
+              token: Jwt.sign(tokenData, privateKey)
+            };
+            return PrintJSON(res, result, 200);
+          }
+        } else {
+          // wrong password
+          callback = {
+            "error": true,
+            "login": false,
+            "message": "Login failed!"
+          };
+          return PrintJSON(res, callback, 403);
+        }
+      }
     });
   } else {
-    callback = {
-      "error": true,
-      "message": "Error: no id input"
-    };
-    return callback;
+    // Input format error
+    return PrintJSON(res, callback, 401);
   }
 }
 
@@ -95,94 +174,97 @@ function users(request, response, postData) {
 
   switch (request.method) {
     case "GET":
-      FindUser(request.query.id, function(callback) {
-        console.log("PrintJSON");
-        PrintJSON(response, callback, code);
-      });
-      var json = FindUser(request.query.id);
-      console.log("Return: " + json);
-      console.log("OK");
-      //console.log(FindUser(request.query.id));
-      //PrintJSON(response, res, code);
+      Find(request, response);
       break;
     case "POST":
       // add a user
       // Validate Schema
-      var schema = {
-        "type": "object",
-        "properties": {
-          "username": {
-            "type": "string"
+      IfExist({ username: postData.username });
+      console.log(exist);
+      if (!exist) {
+        var schema = {
+          "type": "object",
+          "properties": {
+            "username": {
+              "type": "string"
+            },
+            "email": {
+              "format": "email"
+            },
+            "password": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "gender": {
+              "enum": ["male", "female"]
+            },
+            "birth": {
+              "format": "date-time"
+            },
+            "telephone": {
+              "type": "number"
+            }
           },
-          "email": {
-            "format": "email"
-          },
-          "password": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "gender": {
-            "enum": ["male", "female"]
-          },
-          "birth": {
-            "format": "date-time"
-          },
-          "telephone": {
-            "type": "number"
+          "required": ["username", "email", "password", "name", "gender", "birth"],
+          "additionalProperties": true
+        };
+        var valid = ajv.validate(schema, postData);
+        // True/False
+        if (valid) {
+          var hash = Encrypt(postData.password);
+          // Create a new user
+          var user = {
+            username: postData.username,
+            email: postData.email,
+            password: hash,
+            name: postData.name,
+            gender: postData.gender,
+            birth: postData.birth,
+            telephone: postData.telephone,
+            type: "user",
+            isVerified: true,
+            created_at: new Date().toISOString(),
+            created_ip: ip,
+            last_at: new Date().toISOString(),
+            last_ip: ip
+          };
+          User.create(user, function(err, result) {
+            // save() will run insert() command of MongoDB.
+            // it will add new data in collection.
+            console.log("Data Save");
+            if (err) {
+              res = {
+                "error": true,
+                "message": "Error adding data"
+              };
+              code = 500;
+            } else {
+              res = {
+                "error": false,
+                "message": "User added"
+              };
+              code = 201;
+            }
+            PrintJSON(response, res, code);
+          });
+        } else {
+          console.error(ajv.errors);
+          res = {
+            "error": true,
+            "message": ajv.errors[0].message
           }
-        },
-        "required": ["username", "email", "password", "name", "gender", "birth"],
-        "additionalProperties": true
-      };
-      var valid = ajv.validate(schema, postData);
-      // True/False
-      if (valid) {
-        // Encrypted password
-        var hash = crypto.createHash('sha256').update(postData.password).digest('base64');
-        // Create a new user
-        var user = new mongo({
-          username: postData.username,
-          email: postData.email,
-          password: hash,
-          name: postData.name,
-          gender: postData.gender,
-          birth: postData.birth,
-          telephone: postData.telephone,
-          type: "user",
-          created_at: new Date().toISOString(),
-          created_ip: ip,
-          last_at: new Date().toISOString(),
-          last_ip: ip
-        });
-        user.save(function(err) {
-          // save() will run insert() command of MongoDB.
-          // it will add new data in collection.
-          console.log("Data Save");
-          if (err) {
-            res = {
-              "error": true,
-              "message": "Error adding data"
-            };
-            code = 500;
-          } else {
-            res = {
-              "error": false,
-              "message": "Data added"
-            };
-            code = 201;
-          }
-          PrintJSON(response, res, code);
-        });
+          PrintJSON(response, res, 400);
+        }
       } else {
-        console.error(ajv.errors);
         res = {
           "error": true,
-          "message": ajv.errors[0].message
-        }
-        PrintJSON(response, res, 400);
+          "message": "User has existed"
+        };
+        PrintJSON(response, res, 401);
       }
+
       break;
     default:
       res = {
@@ -190,6 +272,15 @@ function users(request, response, postData) {
         "message": "Unknown request"
       };
       PrintJSON(response, res, 400);
+  }
+}
+
+function Userlogin(req, res, postData) {
+  if (req.method === "POST") {
+    login(req, res, postData);
+  } else {
+    var callback = {"error": true, "login": false, "message": "Bad request"};
+    return PrintJSON(res, callback, 401);
   }
 }
 
@@ -216,3 +307,4 @@ exports.upload = upload;
 exports.index = index;
 exports.users = users;
 exports.PrintJSON = PrintJSON;
+exports.login = Userlogin;
