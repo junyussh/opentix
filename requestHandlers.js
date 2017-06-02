@@ -8,7 +8,8 @@ var config = require("./config.json");
 var privateKey = config.privateKey;
 var Ajv = require('ajv');
 var ajv = new Ajv();
-var exist = 0;
+var exist = 0,
+  ip, token = "";
 
 function PrintJSON(response, res, code) {
   if (typeof code != "number") {
@@ -38,6 +39,25 @@ function api(request, response, postData) {
   response.end();
 }
 
+function UpdateTime(res, id) {
+  var callback = {};
+  var query = {
+    created_at: new Date().toISOString(),
+    created_ip: ip
+  };
+  User.updateById(id, query, function(err, result) {
+    if (err) {
+      callback = {
+        "error": true,
+        "message": "Server Error"
+      };
+      return PrintJSON(res, callback, 500);
+    } else {
+      return true;
+    }
+  });
+}
+
 function IfExist(query) {
   User.get(query, function(err, result) {
     if (err) {
@@ -45,12 +65,16 @@ function IfExist(query) {
         "error": true,
         "message": result
       };
-      return PrintJSON(res, callback, 404);
+      return callback;
     } else {
+      console.log(result);
       if (result == null) {
-        return exist=0;
+        return exist = 0;
       } else {
-        return exist=1;
+        console.log("existed");
+        exist = 1;
+        console.log(exist);
+        return exist;
       }
     }
   });
@@ -112,7 +136,9 @@ function login(req, res, postData) {
   var valid = ajv.validate(schema, postData);
   if (valid) {
     // Input format correct
-    User.get({ username: postData.username }, function(err, user) {
+    User.get({
+      username: postData.username
+    }, function(err, user) {
       if (err) {
         // Server Error
         callback = {
@@ -140,12 +166,15 @@ function login(req, res, postData) {
             return PrintJSON(res, callback, 401);
           } else {
             // Everything ok
+            ip = req.connection.remoteAddress;
+            UpdateTime(res, user.id);
             var tokenData = {
               username: user.username,
-              id: user._id
+              name: user.name
             };
             var result = {
-              username: user.username,
+              error: false,
+              message: "Enjoy your token!",
               token: Jwt.sign(tokenData, privateKey)
             };
             return PrintJSON(res, result, 200);
@@ -163,6 +192,10 @@ function login(req, res, postData) {
     });
   } else {
     // Input format error
+    callback = {
+      "error": true,
+      "message": ajv.errors[0].message
+    };
     return PrintJSON(res, callback, 401);
   }
 }
@@ -174,62 +207,73 @@ function users(request, response, postData) {
 
   switch (request.method) {
     case "GET":
-      Find(request, response);
+      if (typeof request.query.id === "undefined") {
+        res = {
+          "error": true,
+          "message": "Bad request"
+        };
+        return PrintJSON(response, res, 401);
+      } else {
+        Find(request, response);
+      }
       break;
     case "POST":
       // add a user
       // Validate Schema
-      IfExist({ username: postData.username });
-      console.log(exist);
-      if (!exist) {
-        var schema = {
-          "type": "object",
-          "properties": {
-            "username": {
-              "type": "string"
-            },
-            "email": {
-              "format": "email"
-            },
-            "password": {
-              "type": "string"
-            },
-            "name": {
-              "type": "string"
-            },
-            "gender": {
-              "enum": ["male", "female"]
-            },
-            "birth": {
-              "format": "date-time"
-            },
-            "telephone": {
-              "type": "number"
-            }
+      IfExist({
+        username: postData.username
+      });
+      var schema = {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
           },
-          "required": ["username", "email", "password", "name", "gender", "birth"],
-          "additionalProperties": true
+          "email": {
+            "format": "email"
+          },
+          "password": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "gender": {
+            "enum": ["male", "female"]
+          },
+          "birth": {
+            "format": "date-time"
+          },
+          "telephone": {
+            "type": "number"
+          }
+        },
+        "required": ["username", "email", "password", "name", "gender", "birth"],
+        "additionalProperties": true
+      };
+      var valid = ajv.validate(schema, postData);
+      // True/False
+
+      if (valid) {
+        var hash = Encrypt(postData.password);
+        // Create a new user
+        var user = {
+          username: postData.username,
+          email: postData.email,
+          password: hash,
+          name: postData.name,
+          gender: postData.gender,
+          birth: postData.birth,
+          telephone: postData.telephone,
+          type: "user",
+          isVerified: true,
+          created_at: new Date().toISOString(),
+          created_ip: ip,
+          last_at: new Date().toISOString(),
+          last_ip: ip,
+          ticket: []
         };
-        var valid = ajv.validate(schema, postData);
-        // True/False
-        if (valid) {
-          var hash = Encrypt(postData.password);
-          // Create a new user
-          var user = {
-            username: postData.username,
-            email: postData.email,
-            password: hash,
-            name: postData.name,
-            gender: postData.gender,
-            birth: postData.birth,
-            telephone: postData.telephone,
-            type: "user",
-            isVerified: true,
-            created_at: new Date().toISOString(),
-            created_ip: ip,
-            last_at: new Date().toISOString(),
-            last_ip: ip
-          };
+        if (exist === 0) {
           User.create(user, function(err, result) {
             // save() will run insert() command of MongoDB.
             // it will add new data in collection.
@@ -250,19 +294,19 @@ function users(request, response, postData) {
             PrintJSON(response, res, code);
           });
         } else {
-          console.error(ajv.errors);
           res = {
             "error": true,
-            "message": ajv.errors[0].message
-          }
-          PrintJSON(response, res, 400);
+            "message": "User has existed"
+          };
+          PrintJSON(response, res, 401);
         }
       } else {
+        console.error(ajv.errors);
         res = {
           "error": true,
-          "message": "User has existed"
-        };
-        PrintJSON(response, res, 401);
+          "message": ajv.errors[0].message
+        }
+        PrintJSON(response, res, 400);
       }
 
       break;
@@ -279,18 +323,41 @@ function Userlogin(req, res, postData) {
   if (req.method === "POST") {
     login(req, res, postData);
   } else {
-    var callback = {"error": true, "login": false, "message": "Bad request"};
+    var callback = {
+      "error": true,
+      "login": false,
+      "message": "Bad request"
+    };
     return PrintJSON(res, callback, 401);
   }
 }
 
 function index(request, response) {
   var res = {};
-  res = {
-    "error": false,
-    "message": "Hello API"
-  };
-  PrintJSON(response, res);
+  var token = request.body.token || request.query.token || request.headers['x-access-token'];
+  if (token) {
+    Jwt.verify(token, privateKey, function(err, decoded) {
+      if (err) {
+        res = {
+          "error": false,
+          "message": "Failed to authenticate token."
+        };
+      } else {
+        request.decoded = decoded;
+        res = {
+          error: false,
+          message: "No token provided."
+        };
+      }
+      return PrintJSON(response, res);
+    });
+  } else {
+    res = {
+      "error": false,
+      "message": "Hello API"
+    };
+  }
+  return PrintJSON(response, res);
 }
 
 function upload(request, response, postData) {

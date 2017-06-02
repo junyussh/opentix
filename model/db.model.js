@@ -1,4 +1,5 @@
 var mongoose = require('mongoose');
+var Schema = mongoose.Schema;
 var f = require("util").format;
 var config = require("../config.json").db;
 var url = f("mongodb://%s:%s@" + config.host + ":" + config.port + "/" + config.database + "?authMechanism=%s",
@@ -25,7 +26,8 @@ db.once('open', function() {
     created_at: Date,
     created_ip: String,
     last_at: Date,
-    last_ip: String
+    last_ip: String,
+    ticket: Schema.Types.Mixed
   });
   UserSchema.statics = {
     get: function (query, callback) {
@@ -53,6 +55,18 @@ db.once('open', function() {
   }
   var User = mongoose.model("User", UserSchema);
 
+var TicketSchema = new Schema({
+  "_id": Number,
+  "name": String,
+  "start": Date,
+  "end": Date,
+  "info": {
+    "time": Date,
+    "location": String
+  },
+  "field": Schema.Types.Mixed,
+  "type": Schema.Types.Mixed
+});
 
 module.exports = {
   User: User
