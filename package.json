@@ -6,6 +6,7 @@
   "license": "GNU",
   "dependencies": {
     "jsonwebtoken": "^7.4.1",
+    "localStorage": "^1.0.3",
     "mongodb": "^2.2.26"
   }
 }

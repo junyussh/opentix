@@ -67,7 +67,6 @@ var TicketSchema = new Schema({
   "field": Schema.Types.Mixed,
   "type": Schema.Types.Mixed
 });
-
 module.exports = {
   User: User
 };

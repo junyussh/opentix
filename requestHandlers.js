@@ -3,13 +3,13 @@ var assert = require("assert");
 var url = require("url");
 var User = require("./model/db.model.js").User;
 var crypto = require("crypto");
+var localStorage = require("localStorage");
 var Jwt = require("jsonwebtoken");
 var config = require("./config.json");
 var privateKey = config.privateKey;
 var Ajv = require('ajv');
 var ajv = new Ajv();
-var exist = 0,
-  ip, token = "";
+var exist = 0, ip;
 
 function PrintJSON(response, res, code) {
   if (typeof code != "number") {
@@ -54,28 +54,6 @@ function UpdateTime(res, id) {
       return PrintJSON(res, callback, 500);
     } else {
       return true;
-    }
-  });
-}
-
-function IfExist(query) {
-  User.get(query, function(err, result) {
-    if (err) {
-      callback = {
-        "error": true,
-        "message": result
-      };
-      return callback;
-    } else {
-      console.log(result);
-      if (result == null) {
-        return exist = 0;
-      } else {
-        console.log("existed");
-        exist = 1;
-        console.log(exist);
-        return exist;
-      }
     }
   });
 }
@@ -177,6 +155,7 @@ function login(req, res, postData) {
               message: "Enjoy your token!",
               token: Jwt.sign(tokenData, privateKey)
             };
+            localStorage.setItem("token", result.token);
             return PrintJSON(res, result, 200);
           }
         } else {
@@ -199,81 +178,74 @@ function login(req, res, postData) {
     return PrintJSON(res, callback, 401);
   }
 }
-
-function users(request, response, postData) {
+function AddUser(request, response, postData) {
+  // add a user
+  // Validate Schema
+  var schema = {
+    "type": "object",
+    "properties": {
+      "username": {
+        "type": "string"
+      },
+      "email": {
+        "format": "email"
+      },
+      "password": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "gender": {
+        "enum": ["male", "female"]
+      },
+      "birth": {
+        "format": "date-time"
+      },
+      "telephone": {
+        "type": "number"
+      }
+    },
+    "required": ["username", "email", "password", "name", "gender", "birth"],
+    "additionalProperties": true
+  };
+  var valid = ajv.validate(schema, postData); // True/False
   var res = {};
-  var code = 200;
-  var ip = request.headers['x-forwarded-for'] || request.connection.remoteAddress;
-
-  switch (request.method) {
-    case "GET":
-      if (typeof request.query.id === "undefined") {
+  if (valid) {
+    var ip = request.headers['x-forwarded-for'] || request.connection.remoteAddress;
+    var hash = Encrypt(postData.password);
+    // Create a new user
+    var user = {
+      username: postData.username,
+      email: postData.email,
+      password: hash,
+      name: postData.name,
+      gender: postData.gender,
+      birth: postData.birth,
+      telephone: postData.telephone,
+      type: "user",
+      isVerified: true,
+      created_at: new Date().toISOString(),
+      created_ip: ip,
+      last_at: new Date().toISOString(),
+      last_ip: ip,
+      ticket: []
+    };
+    User.get({ username: postData.username }, function(err, result) {
+      if (err) {
         res = {
           "error": true,
-          "message": "Bad request"
+          "message": result
         };
-        return PrintJSON(response, res, 401);
+        return PrintJSON(response, res, 500);
       } else {
-        Find(request, response);
-      }
-      break;
-    case "POST":
-      // add a user
-      // Validate Schema
-      IfExist({
-        username: postData.username
-      });
-      var schema = {
-        "type": "object",
-        "properties": {
-          "username": {
-            "type": "string"
-          },
-          "email": {
-            "format": "email"
-          },
-          "password": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "gender": {
-            "enum": ["male", "female"]
-          },
-          "birth": {
-            "format": "date-time"
-          },
-          "telephone": {
-            "type": "number"
-          }
-        },
-        "required": ["username", "email", "password", "name", "gender", "birth"],
-        "additionalProperties": true
-      };
-      var valid = ajv.validate(schema, postData);
-      // True/False
-
-      if (valid) {
-        var hash = Encrypt(postData.password);
-        // Create a new user
-        var user = {
-          username: postData.username,
-          email: postData.email,
-          password: hash,
-          name: postData.name,
-          gender: postData.gender,
-          birth: postData.birth,
-          telephone: postData.telephone,
-          type: "user",
-          isVerified: true,
-          created_at: new Date().toISOString(),
-          created_ip: ip,
-          last_at: new Date().toISOString(),
-          last_ip: ip,
-          ticket: []
-        };
-        if (exist === 0) {
+        if (result) {
+          res = {
+            "error": true,
+            "message": "User has existed"
+          };
+          return PrintJSON(response, res, 401);
+        } else {
           User.create(user, function(err, result) {
             // save() will run insert() command of MongoDB.
             // it will add new data in collection.
@@ -291,24 +263,44 @@ function users(request, response, postData) {
               };
               code = 201;
             }
-            PrintJSON(response, res, code);
+            return PrintJSON(response, res, code);
           });
-        } else {
-          res = {
-            "error": true,
-            "message": "User has existed"
-          };
-          PrintJSON(response, res, 401);
         }
-      } else {
-        console.error(ajv.errors);
+      }
+    });
+  } else {
+    console.error(ajv.errors);
+    res = {
+      "error": true,
+      "message": ajv.errors[0].message
+    }
+    return PrintJSON(response, res, 400);
+  }
+}
+function users(request, response, postData) {
+  var res = {};
+  var code = 200;
+  var token = localStorage.getItem("token");
+
+  switch (request.method) {
+    case "GET":
+      if (typeof request.query.id === "undefined") {
         res = {
           "error": true,
-          "message": ajv.errors[0].message
-        }
-        PrintJSON(response, res, 400);
+          "message": "Bad request"
+        };
+        return PrintJSON(response, res, 401);
+      } else {
+        Find(request, response);
       }
-
+      break;
+    case "POST":
+    if (token) {
+      res = {"error": true,"message": "You've logged in"};
+      return PrintJSON(response, res, 400);
+    } else {
+      return AddUser(request, response, postData);
+    }
       break;
     default:
       res = {
@@ -320,10 +312,22 @@ function users(request, response, postData) {
 }
 
 function Userlogin(req, res, postData) {
+  var callback = {};
+  var token = localStorage.getItem("token");
   if (req.method === "POST") {
-    login(req, res, postData);
+    console.log(token);
+    if (token === null) {
+      login(req, res, postData);
+    } else {
+      callback = {
+        "error": true,
+        "login": true,
+        "message": "You've logged in."
+      };
+      return PrintJSON(res, callback, 401);
+    }
   } else {
-    var callback = {
+    callback = {
       "error": true,
       "login": false,
       "message": "Bad request"
@@ -331,10 +335,20 @@ function Userlogin(req, res, postData) {
     return PrintJSON(res, callback, 401);
   }
 }
-
+function logout(req, res) {
+  var callback = {};
+  var token = localStorage.getItem("token");
+  if (token) {
+    localStorage.clear();
+    callback = {"error": false, "login": false, "message": "You've logged out"}
+    return PrintJSON(res, callback, 200);
+  } else {
+    callback = {"error": true, "login": false, "message": "Token doesn't exist"}
+    return PrintJSON(res, callback, 404);
+  }
+}
 function index(request, response) {
   var res = {};
-  var token = request.body.token || request.query.token || request.headers['x-access-token'];
   if (token) {
     Jwt.verify(token, privateKey, function(err, decoded) {
       if (err) {
@@ -375,3 +389,4 @@ exports.index = index;
 exports.users = users;
 exports.PrintJSON = PrintJSON;
 exports.login = Userlogin;
+exports.logout = logout;

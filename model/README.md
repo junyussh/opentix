@@ -23,15 +23,16 @@ Admin 擁有發行票券的權限。
   "ticket": [{
     "_id": "94627699",
     "name": "內中高瞻資訊班 NHCS 5th 成果發表會 - 2025",
-    "start": ISODate("2017-05-20T15:56:14.032Z"),
-    "end": ISODate("2017-05-20T15:56:14.032Z"),
+    "start_at": ISODate("2017-05-20T15:56:14.032Z"),
+    "end_at": ISODate("2017-05-20T15:56:14.032Z"),
     "info": {
-      "time": ISODate("2017-05-20T15:56:14.032Z"),
+      "from": ISODate("2017-05-20T15:56:14.032Z"),
+      "to": ISODate("2017-05-20T15:56:14.032Z"),
       "location": "臺北市內湖區文德路218號國際會議聽"
     },
-    "field": [{
+    "field": {
 
-      }],
+      },
       "type": {
         "ordinary": {
           "quantity": 500,
@@ -44,6 +45,20 @@ Admin 擁有發行票券的權限。
           "price": 0
         }
       }
+    },
+    {
+    "_id": "94627600",
+    "name": "Coldplay 世界巡迴演唱會台灣場",
+    "start": ISODate("2017-03-20T15:56:14.032Z"),
+    "end": ISODate("2017-03-20T15:56:14.032Z"),
+    "info": {
+      "from": ISODate("2017-04-10T16:00:00.000Z"),
+      "to": ISODate("2017-04-10T16:00:00.000Z"),
+      "location": "桃園高鐵站前廣場"
+    },
+    "field": {
+      },
+      "type": []
     }]
 }
 ```
@@ -76,4 +91,57 @@ Admin 擁有發行票券的權限。
     }
   ]
 }
+```
+
+## DB 操作
+
+新增活動
+
+```javascript
+db.users.update({ username: "chunyu"}, {$push: { ticket: {
+    "_id": "94627600",
+    "name": "Coldplay 世界巡迴演唱會台灣場",
+    "start_at": ISODate("2017-03-20T15:56:14.032Z"),
+    "end": ISODate("2017-03-20T15:56:14.032Z"),
+    "status": "active", // active 可以正常訂票，suspend 暫停售票
+    "info": {
+      "from": ISODate("2017-04-10T16:00:00.000Z"),
+      "to": ISODate("2017-04-10T16:00:00.000Z"),
+      "location": "桃園高鐵站前廣場"
+    },
+    "field": [],
+      "type": {
+        "ordinary": {
+          "quantity": 2700,
+          "limit": 1,
+          "price": 280
+        },
+        "elder": {
+          "quantity": 1800,
+          "limit": 1,
+          "price": 0
+        }
+      }
+    }}});
+```
+
+刪除活動
+
+```javascript
+db.users.update({ username: "chunyu"}, {$pull: { ticket: {_id: "94627600" }}} );
+```
+
+新增欄位
+
+```javascript
+db.users.update({username: "chunyu", 'ticket._id': "94627600"}, { $push: {'ticket.$.field': {came: "Taipei", arrive: "Taichung"}}})
+```
+刪除 field 空集合
+```javascript
+db.users.update({username: "chunyu"}, {$pull: {'ticket.field': {} }})
+```
+
+刪除 ticket 欄位
+```javascript
+db.users.update({username: "chunyu"}, {$unset: {ticket: ""}})
 ```

@@ -28,12 +28,12 @@ function start(route, handle) {
     request.addListener("end", function() {
       if (pathname === "/time") {
         var now = Date.now();
+        var time = new Date().setTime(now-begin);
         var runtime = (now - begin) / (1000 * 60 * 60 * 24);
-        console.log("Server has run for " + runtime + " Days");
         response.writeHead(200, {
           "Content-Type": "text/plain"
         });
-        response.write("Server has run for " + runtime + " Days");
+        response.write("Server has run for " + time.getMinutes + " Minutes " + time.getSeconds + " Seconds");
         response.end();
       }
       if(convert)
