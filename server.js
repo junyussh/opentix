@@ -9,8 +9,8 @@ function start(route, handle) {
     var postData = "";
     var pathname = url.parse(request.url).pathname;
     console.log("Request for " + pathname + " received.");
+    response.setHeader("Access-Control-Allow-Origin", "*");
     request.setEncoding("utf8");
-
     request.addListener("data", function(postDataChunk) {
       postData += postDataChunk;
       console.log("Received POST data chunk '" +

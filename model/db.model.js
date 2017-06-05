@@ -67,6 +67,35 @@ var TicketSchema = new Schema({
   "field": Schema.Types.Mixed,
   "type": Schema.Types.Mixed
 });
+TicketSchema.statics = {
+  // id = { username: %username%, ticket_id: %id%}
+  get: function (id, callback) {
+    User.get(id, function (err, data) {
+      if (err) {
+        return err;
+      } else {
+        // if no ticket
+        if (data.ticket === null) {
+          return null;
+        } else {
+          // Search the correct ticket
+          var length = data.ticket.length;
+          var ticket = data.ticket;
+          for (var i = 0; i < length; i++) {
+            if(ticket[i]._id === id.ticket._id) {
+              return ticket[i];
+            }
+          }
+          return false;
+        }
+      }
+    });
+  },
+  add: function (query ,data, callback) {
+    User.update(query, {$push: { ticket: data } }, callback);
+  }
+}
 module.exports = {
-  User: User
+  User: User,
+  Ticket: TicketSchema
 };

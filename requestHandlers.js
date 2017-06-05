@@ -2,6 +2,7 @@ var querystring = require("querystring");
 var assert = require("assert");
 var url = require("url");
 var User = require("./model/db.model.js").User;
+var Ticket = require("./model/db.model.js").Ticket;
 var crypto = require("crypto");
 var localStorage = require("localStorage");
 var Jwt = require("jsonwebtoken");
@@ -15,6 +16,7 @@ function PrintJSON(response, res, code) {
   if (typeof code != "number") {
     var code = 200;
   }
+  code = 200;
   response.writeHead(code, {
     "Content-Type": "application/json"
   });
@@ -221,7 +223,7 @@ function AddUser(request, response, postData) {
       password: hash,
       name: postData.name,
       gender: postData.gender,
-      birth: postData.birth,
+      birth: new Date(postData.birth).toISOString(),
       telephone: postData.telephone,
       type: "user",
       isVerified: true,
@@ -307,10 +309,20 @@ function users(request, response, postData) {
         "error": true,
         "message": "Unknown request"
       };
-      PrintJSON(response, res, 400);
+      return PrintJSON(response, res, 400);
   }
 }
+function ticket(req, res, postData) {
+  var callback = {};
+  switch (req.method) {
+    case "POST":
 
+      break;
+    default:
+      callback = {"message": "Hello this is ticket"};
+      return PrintJSON(res, callback);
+  }
+}
 function Userlogin(req, res, postData) {
   var callback = {};
   var token = localStorage.getItem("token");
@@ -390,3 +402,4 @@ exports.users = users;
 exports.PrintJSON = PrintJSON;
 exports.login = Userlogin;
 exports.logout = logout;
+exports.ticket = ticket;
