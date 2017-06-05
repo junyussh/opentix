@@ -1,20 +1,29 @@
 var url = require('url');
 var querystring = require("querystring");
+var localStorage = require("localStorage");
+var jwt = require("jsonwebtoken");
+var config = require("./config.json");
 function middleware(req, res) {
-  var token = req.body.token || req.query.token || req.headers['x-access-token']
+  var token = localStorage.getItem("token");
+  var callback = {};
   if (token) {
-    jwt.verify(token, app.get('secret'), function (err, decoded) {
+    jwt.verify(token, config.privateKey, function (err, decoded) {
       if (err) {
-        return handle["PrintJSON"](res,{ error: true, message: 'Failed to authenticate token.' }, 403);
+        console.log("error");
+        callback = {error: true, message: 'Failed to authenticate token.'}
+        return callback;
       } else {
-        req.decoded = decoded;
+        console.log("verify");
+        console.log("decode:"+JSON.stringify(decoded));
+        return decoded;
       }
     });
   } else {
-    return handle["PrintJSON"](res, {
+    callback = {
       error: true,
       message: 'No token provided.'
-    }, 401);
+    };
+    return callback;
   }
 }
 function route(handle, pathname, request, response, postData) {
@@ -24,7 +33,21 @@ function route(handle, pathname, request, response, postData) {
     request.query = url.parse(request.url, 1).query;
     console.log(handle["middleware"]);
     //middleware(request,response);
-    handle[pathname](request, response, postData);
+    if (typeof handle["middleware"][pathname] != "undefined") {
+      if (typeof handle["middleware"][pathname][request.method] === "boolean" && handle["middleware"][pathname][request.method] === true) {
+        console.log(middleware(request, response));
+        if (middleware(request, response) && middleware(request, response).error != true) {
+          console.log(middleware(request, response));
+          handle[pathname](request, response, postData);
+        } else {
+          return handle["PrintJSON"](response, middleware(request, response));
+        }
+      } else {
+        handle[pathname](request, response, postData);
+      }
+    } else {
+      handle[pathname](request, response, postData);
+    }
   } else {
     if (pathname != "/time") {
       console.log("No request handler found for " + pathname);

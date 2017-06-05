@@ -12,6 +12,7 @@
 - [ ] 計算伺服器執行時間
 - [ ] 新增活動時時間不能定在以前
 - [ ] 時區設定
+- [ ] HTTP Status Code 會阻止 AJAX 回傳
 
 # Todo list
 

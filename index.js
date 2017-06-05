@@ -4,11 +4,10 @@ var requestHandlers = require("./requestHandlers");
 var config = require("./config.json");
 var runtime = new Date();
 var auth = { // if middleware
-	"/users": [{
-		"GET": true
-	}, {
-		"POST": false
-	}]
+	"/ticket": {
+		"GET": true,
+		"POST": true
+	}
 };
 var handle = {}
 handle["/"] = requestHandlers.index;
@@ -18,6 +17,7 @@ handle["/users"] = requestHandlers.users;
 handle["PrintJSON"] = requestHandlers.PrintJSON;
 handle["/login"] = requestHandlers.login;
 handle["/logout"] = requestHandlers.logout;
+handle["/ticket"] =  requestHandlers.ticket;
 handle["middleware"] = auth;
 
 server.start(router.route, handle);
