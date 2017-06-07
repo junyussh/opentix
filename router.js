@@ -3,28 +3,25 @@ var querystring = require("querystring");
 var localStorage = require("localStorage");
 var jwt = require("jsonwebtoken");
 var config = require("./config.json");
-function middleware(req, res) {
+function middleware(callback) {
   var token = localStorage.getItem("token");
-  var callback = {};
+  var res = {}, err;
   if (token) {
     jwt.verify(token, config.privateKey, function (err, decoded) {
       if (err) {
         console.log("error");
-        callback = {error: true, message: 'Failed to authenticate token.'}
-        return callback;
+        err = {error: true, message: 'Failed to authenticate token.'};
       } else {
-        console.log("verify");
-        console.log("decode:"+JSON.stringify(decoded));
-        return decoded;
+        res = decoded;
       }
     });
   } else {
-    callback = {
+    err = {
       error: true,
       message: 'No token provided.'
     };
-    return callback;
   }
+  callback(err, res);
 }
 function route(handle, pathname, request, response, postData) {
   //request.pathname = url.parse(request.url, 1).pathname;
@@ -35,13 +32,21 @@ function route(handle, pathname, request, response, postData) {
     //middleware(request,response);
     if (typeof handle["middleware"][pathname] != "undefined") {
       if (typeof handle["middleware"][pathname][request.method] === "boolean" && handle["middleware"][pathname][request.method] === true) {
-        console.log(middleware(request, response));
-        if (middleware(request, response) && middleware(request, response).error != true) {
+        /*
+	      if (middleware(request, response) && middleware(request, response).error != true) {
           console.log(middleware(request, response));
           handle[pathname](request, response, postData);
         } else {
           return handle["PrintJSON"](response, middleware(request, response));
         }
+	      */
+	      middleware(function (data) {
+		      if (data && data.error != true) {
+			      handle[pathname](request, response, postData);
+		      } else {
+			      return handle["PrintJSON"](request, response, postData);
+		      }
+	      });
       } else {
         handle[pathname](request, response, postData);
       }

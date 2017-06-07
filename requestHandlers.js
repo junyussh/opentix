@@ -228,10 +228,7 @@ function AddUser(request, response, postData) {
       type: "user",
       isVerified: true,
       created_at: new Date().toISOString(),
-      created_ip: ip,
       last_at: new Date().toISOString(),
-      last_ip: ip,
-      ticket: []
     };
     User.get({ username: postData.username }, function(err, result) {
       if (err) {
@@ -312,11 +309,17 @@ function users(request, response, postData) {
       return PrintJSON(response, res, 400);
   }
 }
+function AddTicket(req, res, postData) {
+
 function ticket(req, res, postData) {
   var callback = {};
   switch (req.method) {
     case "POST":
-
+	var shema = {
+	"type": "object",
+	"properties": {
+	}};
+		
       break;
     default:
       callback = {"message": "Hello this is ticket"};

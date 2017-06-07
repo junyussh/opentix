@@ -53,20 +53,34 @@ db.once('open', function() {
         user.save(callback);
     }
   }
-  var User = mongoose.model("User", UserSchema);
-
+var User = mongoose.model("User", UserSchema);
 var TicketSchema = new Schema({
-  "_id": Number,
   "name": String,
-  "start": Date,
-  "end": Date,
-  "info": {
-    "time": Date,
-    "location": String
-  },
-  "field": Schema.Types.Mixed,
-  "type": Schema.Types.Mixed
+  "description": String,
+  "location": String,
+  "status": String,
+  "start_at": Date,
+  "end_at": Date,
+  "from": Date,
+  "to": Date,
+  "type": Schema.Types.Mixed,
+  "order": Schema.Types.Mixed
 });
+TicketSchema.statics = {
+  add: function (data, callback) {
+    var ticket = new this(data);
+    ticket.save(callback);
+  },
+  getAll: function (query, callback) {
+    this.find(query, callback);
+  },
+  order: function (data, callback) {
+    this.update(data, {$push: { order: data } }, callback);
+  }
+}
+var Ticket = mongoose.model("ticket", TicketSchema);
+
+/*
 TicketSchema.statics = {
   // id = { username: %username%, ticket_id: %id%}
   get: function (id, callback) {
@@ -95,6 +109,7 @@ TicketSchema.statics = {
     User.update(query, {$push: { ticket: data } }, callback);
   }
 }
+*/
 module.exports = {
   User: User,
   Ticket: TicketSchema
