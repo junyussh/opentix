@@ -320,6 +320,11 @@ function ticket(req, res, postData) {
 	"properties": {
 	}};
 		
+function ticket(req, res, postData) {
+  var callback = {};
+  switch (req.method) {
+    case "POST":
+
       break;
     default:
       callback = {"message": "Hello this is ticket"};

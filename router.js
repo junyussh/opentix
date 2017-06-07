@@ -6,6 +6,9 @@ var config = require("./config.json");
 function middleware(callback) {
   var token = localStorage.getItem("token");
   var res = {}, err;
+function middleware(req, res) {
+  var token = localStorage.getItem("token");
+  var callback = {};
   if (token) {
     jwt.verify(token, config.privateKey, function (err, decoded) {
       if (err) {
@@ -20,6 +23,20 @@ function middleware(callback) {
       error: true,
       message: 'No token provided.'
     };
+        callback = {error: true, message: 'Failed to authenticate token.'}
+        return callback;
+      } else {
+        console.log("verify");
+        console.log("decode:"+JSON.stringify(decoded));
+        return decoded;
+      }
+    });
+  } else {
+    callback = {
+      error: true,
+      message: 'No token provided.'
+    };
+    return callback;
   }
   callback(err, res);
 }
@@ -34,6 +51,8 @@ function route(handle, pathname, request, response, postData) {
       if (typeof handle["middleware"][pathname][request.method] === "boolean" && handle["middleware"][pathname][request.method] === true) {
         /*
 	      if (middleware(request, response) && middleware(request, response).error != true) {
+        console.log(middleware(request, response));
+        if (middleware(request, response) && middleware(request, response).error != true) {
           console.log(middleware(request, response));
           handle[pathname](request, response, postData);
         } else {
@@ -46,7 +65,7 @@ function route(handle, pathname, request, response, postData) {
 		      } else {
 			      return handle["PrintJSON"](request, response, postData);
 		      }
-	      });
+	      }
       } else {
         handle[pathname](request, response, postData);
       }

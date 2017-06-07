@@ -14,6 +14,8 @@
 - [ ] **時區設定**
 - [ ] HTTP Status Code 會阻止 AJAX 回傳
 - [ ] 票數設定 0
+- [ ] 時區設定
+- [ ] HTTP Status Code 會阻止 AJAX 回傳
 
 # Todo list
 
