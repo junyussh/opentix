@@ -55,6 +55,7 @@ db.once('open', function() {
   }
 var User = mongoose.model("User", UserSchema);
 var TicketSchema = new Schema({
+  "username": String,
   "name": String,
   "description": String,
   "location": String,
@@ -63,7 +64,8 @@ var TicketSchema = new Schema({
   "end_at": Date,
   "from": Date,
   "to": Date,
-  "type": Schema.Types.Mixed,
+  "types": Schema.Types.Mixed,
+  "fields": Schema.Types.Mixed,
   "order": Schema.Types.Mixed
 });
 TicketSchema.statics = {
@@ -73,6 +75,9 @@ TicketSchema.statics = {
   },
   getAll: function (query, callback) {
     this.find(query, callback);
+  },
+  delete: function (query, callback) {
+    this.remove(query, callback);
   },
   order: function (data, callback) {
     this.update(data, {$push: { order: data } }, callback);

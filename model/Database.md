@@ -26,6 +26,7 @@ Example:
 ```json
 {
   "_id": "",
+  "username": "",
   "name": "Coldplay 世界巡迴演唱會台灣場",
   "description": "Coldplay first live at Taiwan",
   "location": "高鐵桃園站",

@@ -149,7 +149,9 @@ function login(req, res, postData) {
             UpdateTime(res, user.id);
             var tokenData = {
               username: user.username,
-              name: user.name
+              email: user.email,
+              name: user.name,
+              type: user.type
             };
             var result = {
               error: false,
@@ -315,7 +317,25 @@ function users(request, response, postData) {
       return PrintJSON(response, res, 400);
   }
 }
-
+function GetTicket(req, res) {
+  var callback = {};
+  Ticket.getAll({_id: req.query.id}, function (err, data) {
+    if (err) {
+      callback = {error: true, "message": "Ground Control to Major Tom. Your circuit's dead, there's something wrong."};
+      return PrintJSON(res, callback);
+    } else {
+      var token = localStorage.getItem("token");
+      var decoded = Jwt.verify(token, privateKey);
+      if (decoded.types === "admin") {
+        callback = {"error": false, "message": data};
+      } else {
+        delete data.order;
+        callback = {"error": false, "message": data};
+      }
+      return PrintJSON(res, callback);
+    }
+  })
+}
 function AddTicket(req, res, postData) {
   var infoshema = {
     "type": "object",
@@ -350,7 +370,8 @@ function AddTicket(req, res, postData) {
         "formatMinimum": new Date(postData.end_at).toISOString(),
         "formatExclusiveMinimum": true
       },
-      "types": {"type": "object"}
+      "types": {"type": "object"},
+      "fields": {"type": "object"}
     },
     "required": ["name", "description", "location", "start_at", "end_at", "from", "to"]
   }
@@ -363,6 +384,7 @@ function AddTicket(req, res, postData) {
     } else {
       postData.status = "pending"
     }
+    console.log(postData);
     Ticket.add(postData, function (err, result) {
         if (err) {
           callback = {"error": true, "message": result}
@@ -377,13 +399,102 @@ function AddTicket(req, res, postData) {
     return PrintJSON(res, callback);
   }
 }
-
+function DeleteTicket(res,postData) {
+  var schema = {
+    "type": "object",
+    "properties": {
+      "_id": {"type": "string"},
+      "password": {"type": "string"}
+    },
+    "required": ["_id", "password"]
+  }
+  var valid = ajv.validate(schema, postData);
+  var callback = {};
+  if (valid) {
+    var token = localStorage.getItem("token");
+    Jwt.verify(token, privateKey, function (err, decoded) {
+      if (err) {
+        callback = {"error": true, "message": "Failed to authenticate token."};
+        return PrintJSON(res, callback);
+      } else {
+        User.get({username: decoded.username, password: postData.password}, function (err, data) {
+          if (err) {
+            callback = {"error": true, "message": "Server went wrong"}
+            return PrintJSON(res, callback);
+          } else {
+            Ticket.delete({_id: postData._id, username: decoded.username}, function (err, result) {
+              if (err) {
+                callback = {"error": true, "message": "Server went wrong"};
+                return PrintJSON(res, callback);
+              } else {
+                if (result.n) {
+                  callback = {"error": false, "message": result};
+                } else {
+                  callback = {"error": true, "message": result};
+                }
+                return PrintJSON(res, callback);
+              }
+            });
+          }
+        })
+      }
+    });
+  } else {
+    callback = {"error": "true", "message": ajv.errors};
+    return PrintJSON(res, callback);
+  }
+}
 function ticket(req, res, postData) {
   var callback = {};
   switch (req.method) {
-    case "POST":
-      AddTicket(req, res, postData);
+    case "GET":
+    if (typeof req.query.id === "undefined") {
+      callback = {
+        "error": true,
+        "message": "Bad request"
+      };
+      return PrintJSON(res, callback);
+    } else {
+      return GetTicket(req, res);
+    }
       break;
+    case "POST":
+    // add a ticket
+    var token = localStorage.getItem("token");
+    Jwt.verify(token, privateKey, function (err, decoded) {
+      if (err) {
+        callback = {
+          error: true,
+          message: 'Failed to authenticate token.'
+        }
+        return PrintJSON(res, callback);
+      } else if(decoded.type === "admin"){
+        postData.username = decoded.username;
+        return AddTicket(req, res, postData);
+      } else {
+        callback = {"error": true, "admin": false, "message": "Permission denied"};
+        return PrintJSON(res, callback);
+      }
+    });
+      break;
+      case "DELETE":
+      // delete a ticket
+      var token = localStorage.getItem("token");
+      Jwt.verify(token, privateKey, function (err, decoded) {
+        if (err) {
+          callback = {
+            error: true,
+            message: 'Failed to authenticate token.'
+          }
+          return PrintJSON(res, callback);
+        } else if(decoded.type === "admin"){
+          return DeleteTicket(res, postData);
+        } else {
+          callback = {"error": true, "admin": false, "message": "Permission denied"};
+          return PrintJSON(res, callback);
+        }
+      });
+        break;
     default:
       callback = {
         "message": "Hello this is ticket"
