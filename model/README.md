@@ -103,7 +103,7 @@ db.users.update({ username: "chunyu"}, {$push: { ticket: {
     "name": "Coldplay 世界巡迴演唱會台灣場",
     "start_at": ISODate("2017-03-20T15:56:14.032Z"),
     "end": ISODate("2017-03-20T15:56:14.032Z"),
-    "status": "active", // active 可以正常訂票，suspend 暫停售票
+    "status": "active", // active 可以正常訂票，suspend 暫停售票，pending 尚未開賣
     "info": {
       "from": ISODate("2017-04-10T16:00:00.000Z"),
       "to": ISODate("2017-04-10T16:00:00.000Z"),

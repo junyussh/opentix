@@ -67,7 +67,6 @@ var TicketSchema = new Schema({
   "order": Schema.Types.Mixed
 });
 TicketSchema.statics = {
-<<<<<<< HEAD
   add: function (data, callback) {
     var ticket = new this(data);
     ticket.save(callback);
@@ -113,5 +112,5 @@ TicketSchema.statics = {
 */
 module.exports = {
   User: User,
-  Ticket: TicketSchema
+  Ticket: Ticket
 };

@@ -35,7 +35,7 @@ Example:
   "from": "2017-03-20T15:56:14.032Z",
   "to": "2017-03-20T15:56:14.032Z",
   "field": ,
-  "type": {
+  "types": {
     "ordinary": {
       "quantity": 500,
       "limit": 1,

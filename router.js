@@ -3,43 +3,32 @@ var querystring = require("querystring");
 var localStorage = require("localStorage");
 var jwt = require("jsonwebtoken");
 var config = require("./config.json");
+
 function middleware(callback) {
+  var res = {};
   var token = localStorage.getItem("token");
-  var res = {}, err;
-function middleware(req, res) {
-  var token = localStorage.getItem("token");
-  var callback = {};
   if (token) {
-    jwt.verify(token, config.privateKey, function (err, decoded) {
+    jwt.verify(token, config.privateKey, function(err, decoded) {
       if (err) {
         console.log("error");
-        err = {error: true, message: 'Failed to authenticate token.'};
+        res = {
+          error: true,
+          message: 'Failed to authenticate token.'
+        };
+        callback(res);
       } else {
-        res = decoded;
+        callback(decoded);
       }
     });
   } else {
-    err = {
+    res = {
       error: true,
       message: 'No token provided.'
     };
-        callback = {error: true, message: 'Failed to authenticate token.'}
-        return callback;
-      } else {
-        console.log("verify");
-        console.log("decode:"+JSON.stringify(decoded));
-        return decoded;
-      }
-    });
-  } else {
-    callback = {
-      error: true,
-      message: 'No token provided.'
-    };
-    return callback;
   }
-  callback(err, res);
+  callback(res);
 }
+
 function route(handle, pathname, request, response, postData) {
   //request.pathname = url.parse(request.url, 1).pathname;
   console.log("About to route a request for " + pathname);
@@ -59,13 +48,14 @@ function route(handle, pathname, request, response, postData) {
           return handle["PrintJSON"](response, middleware(request, response));
         }
 	      */
-	      middleware(function (data) {
-		      if (data && data.error != true) {
-			      handle[pathname](request, response, postData);
-		      } else {
-			      return handle["PrintJSON"](request, response, postData);
-		      }
-	      }
+        middleware(function(data) {
+          if (data && data.error != true) {
+            handle[pathname](request, response, postData);
+          } else {
+            data = {"error": true, "message": "failed to authenticate"};
+            handle["PrintJSON"](response, data);
+          }
+        });
       } else {
         handle[pathname](request, response, postData);
       }
@@ -75,8 +65,13 @@ function route(handle, pathname, request, response, postData) {
   } else {
     if (pathname != "/time") {
       console.log("No request handler found for " + pathname);
-      response.writeHead(404, {"Content-Type": "text/json"});
-      response.write(JSON.stringify({ error: true, message: "404 Not found"}, null, 2));
+      response.writeHead(404, {
+        "Content-Type": "text/json"
+      });
+      response.write(JSON.stringify({
+        error: true,
+        message: "404 Not found"
+      }, null, 2));
       response.end();
     }
   }

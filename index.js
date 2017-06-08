@@ -5,8 +5,8 @@ var config = require("./config.json");
 var runtime = new Date();
 var auth = { // if middleware
 	"/ticket": {
-		"GET": true,
-		"POST": true
+		"GET": false,
+		"POST": false
 	}
 };
 var handle = {}

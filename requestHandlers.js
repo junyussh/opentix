@@ -10,7 +10,8 @@ var config = require("./config.json");
 var privateKey = config.privateKey;
 var Ajv = require('ajv');
 var ajv = new Ajv();
-var exist = 0, ip;
+var exist = 0,
+  ip;
 
 function PrintJSON(response, res, code) {
   if (typeof code != "number") {
@@ -28,7 +29,6 @@ function Encrypt(password) {
   // Encrypted password
   var hash = crypto.createHash('sha256').update(password).digest('base64');
   return hash;
-
 }
 
 function api(request, response, postData) {
@@ -45,7 +45,6 @@ function UpdateTime(res, id) {
   var callback = {};
   var query = {
     created_at: new Date().toISOString(),
-    created_ip: ip
   };
   User.updateById(id, query, function(err, result) {
     if (err) {
@@ -180,6 +179,7 @@ function login(req, res, postData) {
     return PrintJSON(res, callback, 401);
   }
 }
+
 function AddUser(request, response, postData) {
   // add a user
   // Validate Schema
@@ -230,7 +230,9 @@ function AddUser(request, response, postData) {
       created_at: new Date().toISOString(),
       last_at: new Date().toISOString(),
     };
-    User.get({ username: postData.username }, function(err, result) {
+    User.get({
+      username: postData.username
+    }, function(err, result) {
       if (err) {
         res = {
           "error": true,
@@ -276,6 +278,7 @@ function AddUser(request, response, postData) {
     return PrintJSON(response, res, 400);
   }
 }
+
 function users(request, response, postData) {
   var res = {};
   var code = 200;
@@ -294,12 +297,15 @@ function users(request, response, postData) {
       }
       break;
     case "POST":
-    if (token) {
-      res = {"error": true,"message": "You've logged in"};
-      return PrintJSON(response, res, 400);
-    } else {
-      return AddUser(request, response, postData);
-    }
+      if (token) {
+        res = {
+          "error": true,
+          "message": "You've logged in"
+        };
+        return PrintJSON(response, res, 400);
+      } else {
+        return AddUser(request, response, postData);
+      }
       break;
     default:
       res = {
@@ -309,28 +315,83 @@ function users(request, response, postData) {
       return PrintJSON(response, res, 400);
   }
 }
+
 function AddTicket(req, res, postData) {
+  var infoshema = {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "maxLength": 32
+      },
+      "description": {
+        "type": "string"
+      },
+      "location": {
+        "type": "string"
+      },
+      "start_at": {
+        "format": "date-time",
+        "formatMaximum": "2017-06-08T10:56:39.745Z",
+        "formatExclusiveMaximum": false
+      },
+      "end_at": {
+        "format": "date-time",
+        "formatMinimum": new Date(postData.start_at).toISOString(),
+        "formatExclusiveMinimum": true
+      },
+      "from": {
+        "format": "date-time",
+        "formatMinimum": new Date().toISOString(),
+        "formatExclusiveMinimum": false
+      },
+      "to": {
+        "format": "date-time",
+        "formatMinimum": new Date(postData.end_at).toISOString(),
+        "formatExclusiveMinimum": true
+      },
+      "types": {"type": "object"}
+    },
+    "required": ["name", "description", "location", "start_at", "end_at", "from", "to"]
+  }
+  var infovaild = ajv.validate(infoshema, postData);
+  var callback = {};
+  if (infovaild) {
+    if (new Date() - postData.start_at) {
+      console.log("active");
+      postData.status = "active";
+    } else {
+      postData.status = "pending"
+    }
+    Ticket.add(postData, function (err, result) {
+        if (err) {
+          callback = {"error": true, "message": result}
+          return PrintJSON(res, callback);
+        } else {
+          callback = {"error": false, "added": true}
+          return PrintJSON(res, callback);
+        }
+    });
+  } else {
+    callback = {"error": true, "message": ajv.errors};
+    return PrintJSON(res, callback);
+  }
+}
 
 function ticket(req, res, postData) {
   var callback = {};
   switch (req.method) {
     case "POST":
-	var shema = {
-	"type": "object",
-	"properties": {
-	}};
-		
-function ticket(req, res, postData) {
-  var callback = {};
-  switch (req.method) {
-    case "POST":
-
+      AddTicket(req, res, postData);
       break;
     default:
-      callback = {"message": "Hello this is ticket"};
+      callback = {
+        "message": "Hello this is ticket"
+      };
       return PrintJSON(res, callback);
   }
 }
+
 function Userlogin(req, res, postData) {
   var callback = {};
   var token = localStorage.getItem("token");
@@ -355,18 +416,28 @@ function Userlogin(req, res, postData) {
     return PrintJSON(res, callback, 401);
   }
 }
+
 function logout(req, res) {
   var callback = {};
   var token = localStorage.getItem("token");
   if (token) {
     localStorage.clear();
-    callback = {"error": false, "login": false, "message": "You've logged out"}
+    callback = {
+      "error": false,
+      "login": false,
+      "message": "You've logged out"
+    }
     return PrintJSON(res, callback, 200);
   } else {
-    callback = {"error": true, "login": false, "message": "Token doesn't exist"}
+    callback = {
+      "error": true,
+      "login": false,
+      "message": "Token doesn't exist"
+    }
     return PrintJSON(res, callback, 404);
   }
 }
+
 function index(request, response) {
   var res = {};
   if (token) {
